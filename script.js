@@ -19,12 +19,6 @@ class Game {
         this.projectiles = [];
         this.particles = [];
         
-        // Drag and drop state
-        this.draggedUnit = null;
-        this.mousePos = { x: 0, y: 0 };
-        this.isDragging = false;
-        this.dragOffset = { x: 0, y: 0 };
-        
         // Spawn timers
         this.monsterSpawnTimer = 0;
         this.monsterSpawnRate = 2000; // milliseconds
@@ -50,33 +44,15 @@ class Game {
     }
     
     setupEventListeners() {
-        // Canvas mouse events for drag and drop
-        this.canvas.addEventListener('mousedown', (e) => {
+        // Canvas click for unit placement
+        this.canvas.addEventListener('click', (e) => {
             if (this.gameState !== 'playing') return;
             
             const rect = this.canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
-            this.handleMouseDown(x, y);
-        });
-        
-        this.canvas.addEventListener('mousemove', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            this.mousePos = { x, y };
-            this.handleMouseMove(x, y);
-        });
-        
-        this.canvas.addEventListener('mouseup', (e) => {
-            this.handleMouseUp();
-        });
-        
-        // Prevent context menu on right click
-        this.canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
+            this.handleCanvasClick(x, y);
         });
         
         // Shop buttons
@@ -105,54 +81,6 @@ class Game {
     handleCanvasClick(x, y) {
         // This will be used for placing units or special abilities
         console.log(`Clicked at: ${x}, ${y}`);
-    }
-    
-    handleMouseDown(x, y) {
-        // Check if clicking on a unit
-        for (let unit of this.units) {
-            const distance = Math.sqrt((x - unit.x) ** 2 + (y - unit.y) ** 2);
-            if (distance <= unit.size) {
-                this.draggedUnit = unit;
-                this.isDragging = true;
-                this.dragOffset.x = x - unit.x;
-                this.dragOffset.y = y - unit.y;
-                this.canvas.style.cursor = 'grabbing';
-                return;
-            }
-        }
-    }
-    
-    handleMouseMove(x, y) {
-        if (this.isDragging && this.draggedUnit) {
-            // Update unit position while dragging
-            this.draggedUnit.x = x - this.dragOffset.x;
-            this.draggedUnit.y = y - this.dragOffset.y;
-            
-            // Keep unit within canvas bounds
-            this.draggedUnit.x = Math.max(this.draggedUnit.size, 
-                Math.min(this.canvas.width - this.draggedUnit.size, this.draggedUnit.x));
-            this.draggedUnit.y = Math.max(this.draggedUnit.size, 
-                Math.min(this.canvas.height - this.draggedUnit.size, this.draggedUnit.y));
-        } else {
-            // Check if hovering over a unit to show grab cursor
-            let hoveringOverUnit = false;
-            for (let unit of this.units) {
-                const distance = Math.sqrt((x - unit.x) ** 2 + (y - unit.y) ** 2);
-                if (distance <= unit.size) {
-                    hoveringOverUnit = true;
-                    break;
-                }
-            }
-            this.canvas.style.cursor = hoveringOverUnit ? 'grab' : 'default';
-        }
-    }
-    
-    handleMouseUp() {
-        if (this.isDragging) {
-            this.isDragging = false;
-            this.draggedUnit = null;
-            this.canvas.style.cursor = 'default';
-        }
     }
     
     buyUnit(type) {
@@ -507,10 +435,10 @@ class Game {
     
     drawGameUI() {
         // Wave indicator with background
-        ctx.fillStyle = 'rgba(15, 15, 35, 0.8)';
-        ctx.fillRect(10, 10, 150, 60);
-        ctx.strokeStyle = '#4ecdc4';
-        ctx.strokeRect(10, 10, 150, 60);
+        this.ctx.fillStyle = 'rgba(15, 15, 35, 0.8)';
+        this.ctx.fillRect(10, 10, 150, 60);
+        this.ctx.strokeStyle = '#4ecdc4';
+        this.ctx.strokeRect(10, 10, 150, 60);
         
         this.ctx.fillStyle = '#ff6b35';
         this.ctx.font = '16px "Press Start 2P"';
@@ -839,21 +767,10 @@ class Unit extends Entity {
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
         
-        // Draw unit border - highlight if being dragged
-        const isDragged = game && game.draggedUnit === this;
-        ctx.strokeStyle = isDragged ? '#fff' : '#fff';
-        ctx.lineWidth = isDragged ? 2 : 1;
+        // Draw unit border
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
         ctx.strokeRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
-        
-        // Add glow effect when dragged
-        if (isDragged) {
-            ctx.shadowColor = this.color;
-            ctx.shadowBlur = 10;
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 1;
-            ctx.strokeRect(this.x - this.size / 2 - 2, this.y - this.size / 2 - 2, this.size + 4, this.size + 4);
-            ctx.shadowBlur = 0;
-        }
         
         // Draw inner detail for pixel art effect
         ctx.fillStyle = this.getLighterColor();
