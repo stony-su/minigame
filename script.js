@@ -7,7 +7,7 @@ class Game {
         
         // Game state
         this.gameState = 'playing'; // playing, paused, gameOver
-        this.money = 100;
+        this.money = 250;
         this.wave = 1;
         this.time = 0;
         this.lastTime = 0;
@@ -286,8 +286,10 @@ class Game {
         this.projectiles = this.projectiles.filter(projectile => !projectile.dead);
         this.particles = this.particles.filter(particle => !particle.dead);
         
-        // Check wave progression
-        if (this.monsters.length === 0 && this.time > 3000 + (this.wave * 1000)) {
+        // Check wave progression - advance automatically every 30 seconds
+        const waveTime = 30000; // 30 seconds per wave
+        const currentWaveStartTime = (this.wave - 1) * waveTime;
+        if (this.time > currentWaveStartTime + waveTime) {
             this.wave++;
             this.monsterSpawnRate = Math.max(300, this.monsterSpawnRate - 50); // Faster spawning each wave
             this.updateUI();
@@ -524,14 +526,15 @@ class Game {
         this.ctx.fillText(timeStr, 20, 50);
         
         // Next wave countdown
-        if (this.monsters.length === 0) {
-            const nextWaveTime = 3000 + (this.wave * 1000);
-            const timeLeft = Math.max(0, nextWaveTime - this.time);
-            if (timeLeft > 0) {
-                this.ctx.fillStyle = '#f39c12';
-                this.ctx.font = '10px "Press Start 2P"';
-                this.ctx.fillText(`Next wave: ${Math.ceil(timeLeft / 1000)}s`, 20, 65);
-            }
+        const waveTime = 30000; // 30 seconds per wave
+        const currentWaveStartTime = (this.wave - 1) * waveTime;
+        const timeInCurrentWave = this.time - currentWaveStartTime;
+        const timeLeftInWave = Math.max(0, waveTime - timeInCurrentWave);
+        
+        if (timeLeftInWave > 0) {
+            this.ctx.fillStyle = '#f39c12';
+            this.ctx.font = '10px "Press Start 2P"';
+            this.ctx.fillText(`Next wave: ${Math.ceil(timeLeftInWave / 1000)}s`, 20, 65);
         }
         
         // Game instructions (first wave only)
