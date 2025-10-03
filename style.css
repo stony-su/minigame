@@ -266,7 +266,7 @@ body {
     backdrop-filter: blur(5px);
 }
 
-#pause-btn {
+#pause-btn, #speed-btn {
     background: #f39c12;
     border: 2px solid #e67e22;
     color: #0f0f23;
@@ -278,8 +278,18 @@ body {
     transition: all 0.2s;
 }
 
-#pause-btn:hover {
+#pause-btn:hover, #speed-btn:hover {
     background: #e67e22;
+    transform: translateY(-2px);
+}
+
+#speed-btn {
+    background: #9b59b6;
+    border: 2px solid #8e44ad;
+}
+
+#speed-btn:hover {
+    background: #8e44ad;
     transform: translateY(-2px);
 }
 

@@ -12,6 +12,8 @@ class Game {
         this.time = 0;
         this.lastTime = 0;
         this.center = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+        this.speedMultiplier = 1; // Speed control (1x, 2x, 4x)
+        this.speedLevels = [1, 2, 4];
         
         // Unit placement state
         this.placementMode = false;
@@ -36,6 +38,9 @@ class Game {
         
         // Event listeners
         this.setupEventListeners();
+        
+        // Initialize UI
+        this.updateSpeedUI();
         
         // Start game loop
         this.gameLoop();
@@ -80,6 +85,7 @@ class Game {
         document.getElementById('resume-btn').addEventListener('click', () => this.togglePause());
         document.getElementById('restart-btn').addEventListener('click', () => this.restart());
         document.getElementById('restart-pause-btn').addEventListener('click', () => this.restart());
+        document.getElementById('speed-btn').addEventListener('click', () => this.toggleSpeed());
         
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
@@ -179,6 +185,20 @@ class Game {
         return true;
     }
     
+    toggleSpeed() {
+        const currentIndex = this.speedLevels.indexOf(this.speedMultiplier);
+        const nextIndex = (currentIndex + 1) % this.speedLevels.length;
+        this.speedMultiplier = this.speedLevels[nextIndex];
+        this.updateSpeedUI();
+    }
+    
+    updateSpeedUI() {
+        const speedBtn = document.getElementById('speed-btn');
+        if (speedBtn) {
+            speedBtn.textContent = `Speed: ${this.speedMultiplier}x`;
+        }
+    }
+
     togglePause() {
         if (this.gameState === 'playing') {
             this.gameState = 'paused';
@@ -254,10 +274,13 @@ class Game {
     update(deltaTime) {
         if (this.gameState !== 'playing') return;
         
-        this.time += deltaTime;
+        // Apply speed multiplier
+        const adjustedDeltaTime = deltaTime * this.speedMultiplier;
         
+        this.time += adjustedDeltaTime;
+
         // Spawn monsters
-        this.monsterSpawnTimer += deltaTime;
+        this.monsterSpawnTimer += adjustedDeltaTime;
         const currentSpawnRate = Math.max(500, this.monsterSpawnRate - (this.wave - 1) * 100);
         
         if (this.monsterSpawnTimer >= currentSpawnRate) {
@@ -266,16 +289,16 @@ class Game {
         }
         
         // Update units
-        this.units.forEach(unit => unit.update(deltaTime, this.monsters, this.projectiles));
+        this.units.forEach(unit => unit.update(adjustedDeltaTime, this.monsters, this.projectiles));
         
         // Update monsters
-        this.monsters.forEach(monster => monster.update(deltaTime, this.center));
+        this.monsters.forEach(monster => monster.update(adjustedDeltaTime, this.center));
         
         // Update projectiles
-        this.projectiles.forEach(projectile => projectile.update(deltaTime));
+        this.projectiles.forEach(projectile => projectile.update(adjustedDeltaTime));
         
         // Update particles
-        this.particles.forEach(particle => particle.update(deltaTime));
+        this.particles.forEach(particle => particle.update(adjustedDeltaTime));
         
         // Check collisions
         this.checkCollisions();
