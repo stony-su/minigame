@@ -1,0 +1,374 @@
+/* Pixelated game styling */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Press Start 2P', monospace;
+    background: #1a1a2e;
+    color: #eee;
+    overflow: hidden;
+    font-size: 12px;
+}
+
+.game-container {
+    display: flex;
+    height: 100vh;
+    background: linear-gradient(45deg, #16213e, #0f3460);
+}
+
+.ui-panel {
+    width: 300px;
+    background: #0f0f23;
+    border-right: 3px solid #333;
+    padding: 20px;
+    overflow-y: auto;
+    box-shadow: inset -5px 0 15px rgba(0,0,0,0.5);
+}
+
+.stats-panel, .shop-panel {
+    margin-bottom: 30px;
+}
+
+.stats-panel h2, .shop-panel h2 {
+    color: #ff6b35;
+    margin-bottom: 15px;
+    text-align: center;
+    font-size: 14px;
+    text-shadow: 2px 2px 0px #000;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #1a1a2e;
+    border: 2px solid #333;
+    border-radius: 4px;
+}
+
+.stat-label {
+    color: #ccc;
+}
+
+.stat span:last-child {
+    color: #4ecdc4;
+    font-weight: bold;
+}
+
+.shop-item {
+    margin-bottom: 15px;
+}
+
+.shop-btn {
+    width: 100%;
+    background: #2c3e50;
+    border: 3px solid #34495e;
+    color: #eee;
+    padding: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 6px;
+}
+
+.shop-btn:hover {
+    background: #34495e;
+    border-color: #4ecdc4;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.shop-btn:active {
+    transform: translateY(0);
+}
+
+.shop-btn:disabled {
+    background: #1a1a2e;
+    border-color: #333;
+    color: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.unit-icon {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #555;
+    border-radius: 4px;
+    flex-shrink: 0;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+}
+
+.warrior-icon {
+    background: linear-gradient(45deg, #c0392b, #e74c3c);
+    position: relative;
+}
+
+.warrior-icon::after {
+    content: '⚔';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    color: #fff;
+}
+
+.ranger-icon {
+    background: linear-gradient(45deg, #27ae60, #2ecc71);
+    position: relative;
+}
+
+.ranger-icon::after {
+    content: '🏹';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+}
+
+.wizard-icon {
+    background: linear-gradient(45deg, #8e44ad, #9b59b6);
+    position: relative;
+}
+
+.wizard-icon::after {
+    content: '🔮';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+}
+
+.shop-info {
+    flex: 1;
+    text-align: left;
+}
+
+.unit-name {
+    color: #4ecdc4;
+    margin-bottom: 4px;
+    font-size: 11px;
+}
+
+.unit-cost {
+    color: #f39c12;
+    margin-bottom: 4px;
+    font-size: 9px;
+}
+
+.unit-desc {
+    color: #bdc3c7;
+    font-size: 8px;
+}
+
+.game-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#gameCanvas {
+    border: 3px solid #333;
+    background: #0a0a0a;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    box-shadow: 0 0 20px rgba(0,0,0,0.7);
+}
+
+.game-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+}
+
+.modal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #0f0f23;
+    border: 4px solid #4ecdc4;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    pointer-events: auto;
+    z-index: 1000;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal h2 {
+    color: #ff6b35;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.modal p {
+    margin-bottom: 20px;
+    color: #ccc;
+    font-size: 10px;
+}
+
+.modal button {
+    background: #4ecdc4;
+    border: 2px solid #45b7b8;
+    color: #0f0f23;
+    padding: 12px 24px;
+    font-family: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin: 5px;
+    transition: all 0.2s;
+}
+
+.modal button:hover {
+    background: #45b7b8;
+    transform: translateY(-2px);
+}
+
+.controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: rgba(15, 15, 35, 0.9);
+    padding: 15px 25px;
+    border: 2px solid #333;
+    border-radius: 8px;
+    backdrop-filter: blur(5px);
+}
+
+#pause-btn {
+    background: #f39c12;
+    border: 2px solid #e67e22;
+    color: #0f0f23;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+#pause-btn:hover {
+    background: #e67e22;
+    transform: translateY(-2px);
+}
+
+.control-info p {
+    color: #bdc3c7;
+    font-size: 8px;
+    line-height: 1.4;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+    .ui-panel {
+        width: 250px;
+    }
+    
+    #gameCanvas {
+        width: 640px;
+        height: 480px;
+    }
+}
+
+@media (max-width: 900px) {
+    .game-container {
+        flex-direction: column;
+    }
+    
+    .ui-panel {
+        width: 100%;
+        height: 200px;
+        display: flex;
+        gap: 20px;
+        padding: 15px;
+    }
+    
+    .stats-panel, .shop-panel {
+        flex: 1;
+        margin-bottom: 0;
+    }
+    
+    #gameCanvas {
+        width: 90vw;
+        height: calc(100vh - 280px);
+        max-width: 800px;
+        max-height: 600px;
+    }
+}
+
+/* Animation classes */
+.damage-text {
+    position: absolute;
+    color: #ff6b35;
+    font-size: 12px;
+    font-family: 'Press Start 2P', monospace;
+    pointer-events: none;
+    z-index: 100;
+    animation: damageFloat 1s ease-out forwards;
+}
+
+@keyframes damageFloat {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+}
+
+.money-pickup {
+    position: absolute;
+    color: #f39c12;
+    font-size: 10px;
+    font-family: 'Press Start 2P', monospace;
+    pointer-events: none;
+    z-index: 100;
+    animation: moneyFloat 1.5s ease-out forwards;
+}
+
+@keyframes moneyFloat {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        transform: translateY(-20px) scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-40px) scale(0.8);
+    }
+}

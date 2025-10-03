@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Survivors</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="ui-panel">
+            <div class="stats-panel">
+                <h2>Stats</h2>
+                <div class="stat">
+                    <span class="stat-label">Money:</span>
+                    <span id="money">100</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Wave:</span>
+                    <span id="wave">1</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Units:</span>
+                    <span id="unit-count">3</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Monsters:</span>
+                    <span id="monster-count">0</span>
+                </div>
+            </div>
+            
+            <div class="shop-panel">
+                <h2>Shop</h2>
+                <div class="shop-item">
+                    <button id="buy-warrior" class="shop-btn">
+                        <div class="unit-icon warrior-icon"></div>
+                        <div class="shop-info">
+                            <div class="unit-name">Warrior</div>
+                            <div class="unit-cost">Cost: 50</div>
+                            <div class="unit-desc">Melee tank unit</div>
+                        </div>
+                    </button>
+                </div>
+                <div class="shop-item">
+                    <button id="buy-ranger" class="shop-btn">
+                        <div class="unit-icon ranger-icon"></div>
+                        <div class="shop-info">
+                            <div class="unit-name">Ranger</div>
+                            <div class="unit-cost">Cost: 75</div>
+                            <div class="unit-desc">Ranged unit</div>
+                        </div>
+                    </button>
+                </div>
+                <div class="shop-item">
+                    <button id="buy-wizard" class="shop-btn">
+                        <div class="unit-icon wizard-icon"></div>
+                        <div class="shop-info">
+                            <div class="unit-name">Wizard</div>
+                            <div class="unit-cost">Cost: 100</div>
+                            <div class="unit-desc">Magic damage</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <div class="game-overlay">
+                <div id="game-over" class="modal hidden">
+                    <div class="modal-content">
+                        <h2>Game Over!</h2>
+                        <p>You survived <span id="final-wave">0</span> waves!</p>
+                        <button id="restart-btn">Play Again</button>
+                    </div>
+                </div>
+                <div id="pause-menu" class="modal hidden">
+                    <div class="modal-content">
+                        <h2>Paused</h2>
+                        <button id="resume-btn">Resume</button>
+                        <button id="restart-pause-btn">Restart</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button id="pause-btn">Pause</button>
+        <div class="control-info">
+            <p>Click to place units • Defend the center • Survive the waves!</p>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
