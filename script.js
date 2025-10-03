@@ -7,7 +7,7 @@ class Game {
         
         // Game state
         this.gameState = 'playing'; // playing, paused, gameOver
-        this.money = 250;
+        this.money = 400;
         this.wave = 1;
         this.time = 0;
         this.lastTime = 0;
@@ -212,7 +212,7 @@ class Game {
     restart() {
         // Reset game state
         this.gameState = 'playing';
-        this.money = 100;
+        this.money = 400;
         this.wave = 1;
         this.time = 0;
         this.monsterSpawnTimer = 0;
