@@ -13,6 +13,14 @@ class Game {
         this.lastTime = 0;
         this.center = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
         
+        // Unit placement state
+        this.placementMode = false;
+        this.placementUnitType = null;
+        this.placementUnitClass = null;
+        this.placementUnitCost = 0;
+        this.mouseX = 0;
+        this.mouseY = 0;
+        
         // Game objects
         this.units = [];
         this.monsters = [];
@@ -55,6 +63,13 @@ class Game {
             this.handleCanvasClick(x, y);
         });
         
+        // Mouse move for placement preview
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.mouseX = e.clientX - rect.left;
+            this.mouseY = e.clientY - rect.top;
+        });
+        
         // Shop buttons
         document.getElementById('buy-warrior').addEventListener('click', () => this.buyUnit('warrior'));
         document.getElementById('buy-ranger').addEventListener('click', () => this.buyUnit('ranger'));
@@ -75,12 +90,23 @@ class Game {
             if (e.code === 'KeyR' && this.gameState === 'gameOver') {
                 this.restart();
             }
+            if (e.code === 'Escape' && this.placementMode) {
+                this.cancelPlacement();
+            }
         });
     }
     
     handleCanvasClick(x, y) {
-        // This will be used for placing units or special abilities
-        console.log(`Clicked at: ${x}, ${y}`);
+        if (this.placementMode) {
+            // Check if placement is valid (not too close to center, within bounds)
+            if (this.isValidPlacement(x, y)) {
+                // Place the unit
+                this.units.push(new this.placementUnitClass(x, y));
+                this.money -= this.placementUnitCost;
+                this.updateUI();
+                this.exitPlacementMode();
+            }
+        }
     }
     
     buyUnit(type) {
@@ -103,17 +129,54 @@ class Game {
         }
         
         if (this.money >= cost && UnitClass) {
-            this.money -= cost;
-            
-            // Place unit near center in a spiral pattern
-            const angle = this.units.length * 0.8;
-            const distance = 60 + (this.units.length % 8) * 15;
-            const x = this.center.x + Math.cos(angle) * distance;
-            const y = this.center.y + Math.sin(angle) * distance;
-            
-            this.units.push(new UnitClass(x, y));
-            this.updateUI();
+            // Enter placement mode
+            this.enterPlacementMode(type, UnitClass, cost);
         }
+    }
+    
+    enterPlacementMode(type, UnitClass, cost) {
+        this.placementMode = true;
+        this.placementUnitType = type;
+        this.placementUnitClass = UnitClass;
+        this.placementUnitCost = cost;
+        this.canvas.style.cursor = 'crosshair';
+    }
+    
+    exitPlacementMode() {
+        this.placementMode = false;
+        this.placementUnitType = null;
+        this.placementUnitClass = null;
+        this.placementUnitCost = 0;
+        this.canvas.style.cursor = 'default';
+    }
+    
+    cancelPlacement() {
+        this.exitPlacementMode();
+    }
+    
+    isValidPlacement(x, y) {
+        // Check minimum distance from center
+        const distanceFromCenter = Math.sqrt((x - this.center.x) ** 2 + (y - this.center.y) ** 2);
+        if (distanceFromCenter < 50) {
+            return false;
+        }
+        
+        // Check not too close to other units
+        for (let unit of this.units) {
+            const distance = Math.sqrt((x - unit.x) ** 2 + (y - unit.y) ** 2);
+            if (distance < 25) {
+                return false;
+            }
+        }
+        
+        // Check within canvas bounds
+        const margin = 20;
+        if (x < margin || x > this.canvas.width - margin || 
+            y < margin || y > this.canvas.height - margin) {
+            return false;
+        }
+        
+        return true;
     }
     
     togglePause() {
@@ -133,6 +196,9 @@ class Game {
         this.wave = 1;
         this.time = 0;
         this.monsterSpawnTimer = 0;
+        
+        // Reset placement mode
+        this.exitPlacementMode();
         
         // Clear arrays
         this.units = [];
@@ -395,6 +461,11 @@ class Game {
         this.projectiles.forEach(projectile => projectile.render(this.ctx));
         this.particles.forEach(particle => particle.render(this.ctx));
         
+        // Draw placement preview
+        if (this.placementMode) {
+            this.drawPlacementPreview();
+        }
+        
         // Draw UI overlay
         this.drawGameUI();
     }
@@ -476,6 +547,53 @@ class Game {
             this.ctx.fillText('Warriors tank, Rangers shoot, Wizards splash', this.canvas.width / 2, this.canvas.height - 35);
             this.ctx.textAlign = 'left';
         }
+        
+        // Placement mode instructions
+        if (this.placementMode) {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.fillRect(this.canvas.width / 2 - 150, 10, 300, 30);
+            
+            this.ctx.fillStyle = '#4ecdc4';
+            this.ctx.font = '10px "Press Start 2P"';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`Click to place ${this.placementUnitType} | ESC to cancel`, this.canvas.width / 2, 30);
+            this.ctx.textAlign = 'left';
+        }
+    }
+    
+    drawPlacementPreview() {
+        if (!this.placementUnitClass) return;
+        
+        const isValid = this.isValidPlacement(this.mouseX, this.mouseY);
+        
+        // Create temporary unit for preview
+        const tempUnit = new this.placementUnitClass(this.mouseX, this.mouseY);
+        
+        // Draw preview with transparency
+        this.ctx.globalAlpha = 0.7;
+        
+        // Change color based on validity
+        if (isValid) {
+            tempUnit.render(this.ctx);
+        } else {
+            // Draw red preview for invalid placement
+            this.ctx.fillStyle = '#e74c3c';
+            this.ctx.fillRect(this.mouseX - tempUnit.size / 2, this.mouseY - tempUnit.size / 2, tempUnit.size, tempUnit.size);
+            this.ctx.strokeStyle = '#fff';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(this.mouseX - tempUnit.size / 2, this.mouseY - tempUnit.size / 2, tempUnit.size, tempUnit.size);
+        }
+        
+        // Draw range indicator
+        this.ctx.strokeStyle = isValid ? '#4ecdc4' : '#e74c3c';
+        this.ctx.lineWidth = 1;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.beginPath();
+        this.ctx.arc(this.mouseX, this.mouseY, tempUnit.range, 0, Math.PI * 2);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+        
+        this.ctx.globalAlpha = 1;
     }
     
     updateUI() {
