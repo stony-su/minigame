@@ -687,6 +687,11 @@ class Game {
         // Create temporary unit for preview
         const tempUnit = new this.placementUnitClass(this.mouseX, this.mouseY);
         
+        // Apply current upgrades to preview unit to show accurate range
+        tempUnit.applyDamageUpgrade(this.upgrades.damage.level, this.upgrades.damage.multiplier);
+        tempUnit.applyAttackSpeedUpgrade(this.upgrades.attackSpeed.level, this.upgrades.attackSpeed.multiplier);
+        tempUnit.applyRangeUpgrade(this.upgrades.range.level, this.upgrades.range.multiplier);
+        
         // Draw preview with transparency
         this.ctx.globalAlpha = 0.7;
         
@@ -702,7 +707,7 @@ class Game {
             this.ctx.strokeRect(this.mouseX - tempUnit.size / 2, this.mouseY - tempUnit.size / 2, tempUnit.size, tempUnit.size);
         }
         
-        // Draw range indicator
+        // Draw range indicator (now uses upgraded range)
         this.ctx.strokeStyle = isValid ? '#4ecdc4' : '#e74c3c';
         this.ctx.lineWidth = 1;
         this.ctx.setLineDash([5, 5]);
