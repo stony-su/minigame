@@ -30,6 +30,9 @@ class Game {
         this.mouseX = 0;
         this.mouseY = 0;
         
+        // Unit selection state
+        this.selectedUnit = null;
+        
         // Game objects
         this.units = [];
         this.monsters = [];
@@ -100,6 +103,7 @@ class Game {
         document.getElementById('restart-btn').addEventListener('click', () => this.restart());
         document.getElementById('restart-pause-btn').addEventListener('click', () => this.restart());
         document.getElementById('speed-btn').addEventListener('click', () => this.toggleSpeed());
+        document.getElementById('close-evolution').addEventListener('click', () => this.closeEvolutionPanel());
         
         // Keyboard controls
         document.addEventListener('keydown', (e) => {
@@ -143,6 +147,21 @@ class Game {
                 this.updateUI();
                 this.exitPlacementMode();
             }
+        } else {
+            // Check if clicking on a unit
+            this.selectedUnit = null;
+            for (let unit of this.units) {
+                const distance = Math.sqrt((x - unit.x) ** 2 + (y - unit.y) ** 2);
+                if (distance <= unit.size) {
+                    this.selectedUnit = unit;
+                    // Open evolution panel if unit can evolve
+                    if (unit.canEvolve && !unit.evolved) {
+                        this.openEvolutionPanel(unit);
+                    }
+                    break;
+                }
+            }
+            this.updateUI();
         }
     }
     
@@ -305,9 +324,116 @@ class Game {
         // Hide modals
         document.getElementById('game-over').classList.add('hidden');
         document.getElementById('pause-menu').classList.add('hidden');
+        document.getElementById('evolution-panel').classList.add('hidden');
         
         // Reinitialize
         this.initializeStartingUnits();
+        this.updateUI();
+    }
+    
+    openEvolutionPanel(unit) {
+        if (this.gameState !== 'playing') return;
+        
+        const panel = document.getElementById('evolution-panel');
+        const unitName = document.getElementById('evolution-unit-name');
+        const unitType = document.getElementById('evolution-unit-type');
+        const pathsContainer = document.getElementById('evolution-paths');
+        
+        unitName.textContent = unit.type.charAt(0).toUpperCase() + unit.type.slice(1);
+        unitType.textContent = `Level 1 • Health: ${unit.health}/${unit.maxHealth}`;
+        
+        // Clear previous paths
+        pathsContainer.innerHTML = '';
+        
+        // Add evolution options
+        unit.evolutionPaths.forEach(path => {
+            const pathDiv = document.createElement('div');
+            pathDiv.className = 'evolution-path';
+            
+            const canAfford = this.money >= path.cost;
+            pathDiv.innerHTML = `
+                <button class="evolution-btn ${canAfford ? '' : 'disabled'}" 
+                        ${canAfford ? `onclick="game.evolveUnit('${path.name}')"` : 'disabled'}>
+                    <div class="evolution-name">${path.name}</div>
+                    <div class="evolution-cost">Cost: ${path.cost}</div>
+                    <div class="evolution-desc">${path.description}</div>
+                </button>
+            `;
+            
+            pathsContainer.appendChild(pathDiv);
+        });
+        
+        panel.classList.remove('hidden');
+    }
+    
+    closeEvolutionPanel() {
+        document.getElementById('evolution-panel').classList.add('hidden');
+    }
+    
+    evolveUnit(evolutionName) {
+        if (!this.selectedUnit || !this.selectedUnit.canEvolve) return;
+        
+        const evolutionPath = this.selectedUnit.evolutionPaths.find(path => path.name === evolutionName);
+        if (!evolutionPath || this.money < evolutionPath.cost) return;
+        
+        // Deduct cost
+        this.money -= evolutionPath.cost;
+        
+        // Store unit position and upgrades
+        const x = this.selectedUnit.x;
+        const y = this.selectedUnit.y;
+        const damageLevel = this.selectedUnit.damageUpgradeLevel;
+        const speedLevel = this.selectedUnit.attackSpeedUpgradeLevel;
+        const rangeLevel = this.selectedUnit.rangeUpgradeLevel;
+        
+        // Create evolved unit
+        let evolvedUnit;
+        switch (evolutionName) {
+            case 'Guardian':
+                evolvedUnit = new Guardian(x, y);
+                break;
+            case 'Berserker':
+                evolvedUnit = new Berserker(x, y);
+                break;
+            case 'Sniper':
+                evolvedUnit = new Sniper(x, y);
+                break;
+            case 'Hunter':
+                evolvedUnit = new Hunter(x, y);
+                break;
+            case 'Archmage':
+                evolvedUnit = new Archmage(x, y);
+                break;
+            case 'Elementalist':
+                evolvedUnit = new Elementalist(x, y);
+                break;
+            default:
+                return;
+        }
+        
+        // Apply existing upgrades
+        evolvedUnit.applyDamageUpgrade(damageLevel, this.upgrades.damage.multiplier);
+        evolvedUnit.applyAttackSpeedUpgrade(speedLevel, this.upgrades.attackSpeed.multiplier);
+        evolvedUnit.applyRangeUpgrade(rangeLevel, this.upgrades.range.multiplier);
+        
+        // Replace unit in array
+        const unitIndex = this.units.indexOf(this.selectedUnit);
+        if (unitIndex !== -1) {
+            this.units[unitIndex] = evolvedUnit;
+        }
+        
+        // Create evolution particles
+        for (let i = 0; i < 15; i++) {
+            this.particles.push(new Particle(
+                x + (Math.random() - 0.5) * 40,
+                y + (Math.random() - 0.5) * 40,
+                '#f39c12',
+                1000
+            ));
+        }
+        
+        this.selectedUnit = evolvedUnit;
+        this.closeEvolutionPanel();
         this.updateUI();
     }
     
@@ -573,7 +699,27 @@ class Game {
         this.drawCenter();
         
         // Render game objects
-        this.units.forEach(unit => unit.render(this.ctx));
+        this.units.forEach(unit => {
+            unit.render(this.ctx);
+            // Highlight selected unit
+            if (this.selectedUnit === unit) {
+                this.ctx.strokeStyle = '#4ecdc4';
+                this.ctx.lineWidth = 2;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.beginPath();
+                this.ctx.arc(unit.x, unit.y, unit.size + 5, 0, Math.PI * 2);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            }
+            // Show evolution indicator for units that can evolve
+            if (unit.canEvolve && !unit.evolved) {
+                const sparkleSize = 2 + Math.sin(this.time * 0.01) * 1;
+                this.ctx.fillStyle = '#f39c12';
+                this.ctx.beginPath();
+                this.ctx.arc(unit.x + unit.size / 2 + 3, unit.y - unit.size / 2 - 3, sparkleSize, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        });
         this.monsters.forEach(monster => monster.render(this.ctx));
         this.projectiles.forEach(projectile => projectile.render(this.ctx));
         this.particles.forEach(particle => particle.render(this.ctx));
@@ -1001,6 +1147,12 @@ class Unit extends Entity {
         this.damageUpgradeLevel = 0;
         this.attackSpeedUpgradeLevel = 0;
         this.rangeUpgradeLevel = 0;
+        
+        // Evolution tracking
+        this.canEvolve = false;
+        this.evolutionPaths = [];
+        this.evolved = false;
+        this.evolutionCost = 200;
     }
     
     applyDamageUpgrade(level, multiplier) {
@@ -1110,6 +1262,13 @@ class Warrior extends Unit {
         this.meleeDamage = this.baseMeleeDamage;
         this.color = '#e74c3c';
         this.type = 'warrior';
+        
+        // Evolution setup
+        this.canEvolve = true;
+        this.evolutionPaths = [
+            { name: 'Guardian', cost: 200, description: 'Tank with high health and taunt' },
+            { name: 'Berserker', cost: 250, description: 'High damage with life steal' }
+        ];
     }
     
     render(ctx) {
@@ -1145,6 +1304,13 @@ class Ranger extends Unit {
         this.projectileSpeed = 300;
         this.color = '#2ecc71';
         this.type = 'ranger';
+        
+        // Evolution setup
+        this.canEvolve = true;
+        this.evolutionPaths = [
+            { name: 'Sniper', cost: 225, description: 'Extreme range and critical hits' },
+            { name: 'Hunter', cost: 200, description: 'Multi-shot and tracking arrows' }
+        ];
     }
     
     render(ctx) {
@@ -1183,6 +1349,13 @@ class Wizard extends Unit {
         this.projectileSpeed = 250;
         this.color = '#9b59b6';
         this.type = 'wizard';
+        
+        // Evolution setup
+        this.canEvolve = true;
+        this.evolutionPaths = [
+            { name: 'Archmage', cost: 275, description: 'Chain lightning and mana shield' },
+            { name: 'Elementalist', cost: 250, description: 'Elemental damage and area spells' }
+        ];
     }
     
     attack(monsters, projectiles) {
@@ -1275,6 +1448,365 @@ class MagicProjectile extends Projectile {
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
+    }
+}
+
+// Evolved Unit Classes
+class Guardian extends Warrior {
+    constructor(x, y) {
+        super(x, y);
+        this.health = 300;
+        this.maxHealth = 300;
+        this.size = 14;
+        this.baseMeleeDamage = 20;
+        this.meleeDamage = this.baseMeleeDamage;
+        this.color = '#8e44ad';
+        this.type = 'guardian';
+        this.evolved = true;
+        this.canEvolve = false;
+        this.tauntRadius = 60;
+    }
+    
+    update(deltaTime, monsters, projectiles) {
+        super.update(deltaTime, monsters, projectiles);
+        
+        // Taunt nearby monsters to target this unit
+        monsters.forEach(monster => {
+            const distance = this.getDistance(monster);
+            if (distance <= this.tauntRadius) {
+                // Redirect monster slightly towards this unit
+                const angle = Math.atan2(this.y - monster.y, this.x - monster.x);
+                monster.vx += Math.cos(angle) * 5;
+                monster.vy += Math.sin(angle) * 5;
+            }
+        });
+    }
+    
+    render(ctx) {
+        super.render(ctx);
+        
+        // Draw shield symbol
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText('🛡️', this.x, this.y + 2);
+        ctx.textAlign = 'left';
+    }
+}
+
+class Berserker extends Warrior {
+    constructor(x, y) {
+        super(x, y);
+        this.health = 120;
+        this.maxHealth = 120;
+        this.size = 12;
+        this.baseAttackRate = 400;
+        this.attackRate = this.baseAttackRate;
+        this.baseMeleeDamage = 45;
+        this.meleeDamage = this.baseMeleeDamage;
+        this.color = '#c0392b';
+        this.type = 'berserker';
+        this.evolved = true;
+        this.canEvolve = false;
+        this.lifeSteal = 0.3; // 30% life steal
+    }
+    
+    takeDamage(amount) {
+        super.takeDamage(amount);
+        
+        // Berserker gets faster when damaged
+        const healthPercent = this.health / this.maxHealth;
+        const speedBonus = (1 - healthPercent) * 0.5;
+        this.attackRate = this.baseAttackRate * (1 - speedBonus);
+    }
+    
+    attack(monsters, projectiles) {
+        super.attack(monsters, projectiles);
+        
+        // Life steal on attack
+        if (this.health < this.maxHealth) {
+            this.health = Math.min(this.maxHealth, this.health + this.meleeDamage * this.lifeSteal);
+        }
+    }
+    
+    render(ctx) {
+        super.render(ctx);
+        
+        // Draw berserker symbol
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚡', this.x, this.y + 2);
+        ctx.textAlign = 'left';
+    }
+}
+
+class Sniper extends Ranger {
+    constructor(x, y) {
+        super(x, y);
+        this.health = 70;
+        this.maxHealth = 70;
+        this.baseAttackRate = 1000;
+        this.attackRate = this.baseAttackRate;
+        this.baseRange = 200;
+        this.range = this.baseRange;
+        this.baseProjectileDamage = 60;
+        this.projectileDamage = this.baseProjectileDamage;
+        this.projectileSpeed = 500;
+        this.color = '#27ae60';
+        this.type = 'sniper';
+        this.evolved = true;
+        this.canEvolve = false;
+        this.critChance = 0.25; // 25% crit chance
+        this.critMultiplier = 2.5;
+    }
+    
+    attack(monsters, projectiles) {
+        let nearestMonster = null;
+        let nearestDistance = Infinity;
+        
+        monsters.forEach(monster => {
+            const distance = this.getDistance(monster);
+            if (distance <= this.range && distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestMonster = monster;
+            }
+        });
+        
+        if (nearestMonster) {
+            const angle = Math.atan2(nearestMonster.y - this.y, nearestMonster.x - this.x);
+            const isCrit = Math.random() < this.critChance;
+            const damage = isCrit ? this.projectileDamage * this.critMultiplier : this.projectileDamage;
+            
+            const projectile = new Projectile(this.x, this.y, angle, this.projectileSpeed, damage, this.color);
+            if (isCrit) {
+                projectile.color = '#f39c12'; // Golden color for crits
+                projectile.size = 5;
+            }
+            projectiles.push(projectile);
+        }
+    }
+    
+    render(ctx) {
+        super.render(ctx);
+        
+        // Draw scope symbol
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎯', this.x, this.y + 2);
+        ctx.textAlign = 'left';
+    }
+}
+
+class Hunter extends Ranger {
+    constructor(x, y) {
+        super(x, y);
+        this.health = 90;
+        this.maxHealth = 90;
+        this.baseAttackRate = 500;
+        this.attackRate = this.baseAttackRate;
+        this.baseProjectileDamage = 15;
+        this.projectileDamage = this.baseProjectileDamage;
+        this.color = '#229954';
+        this.type = 'hunter';
+        this.evolved = true;
+        this.canEvolve = false;
+        this.multiShotCount = 3;
+    }
+    
+    attack(monsters, projectiles) {
+        let nearestMonster = null;
+        let nearestDistance = Infinity;
+        
+        monsters.forEach(monster => {
+            const distance = this.getDistance(monster);
+            if (distance <= this.range && distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestMonster = monster;
+            }
+        });
+        
+        if (nearestMonster) {
+            const baseAngle = Math.atan2(nearestMonster.y - this.y, nearestMonster.x - this.x);
+            
+            // Fire multiple projectiles in a spread
+            for (let i = 0; i < this.multiShotCount; i++) {
+                const angleOffset = (i - 1) * 0.2; // 0.2 radian spread
+                const angle = baseAngle + angleOffset;
+                projectiles.push(new Projectile(
+                    this.x, this.y, angle, this.projectileSpeed, this.projectileDamage, this.color
+                ));
+            }
+        }
+    }
+    
+    render(ctx) {
+        super.render(ctx);
+        
+        // Draw multi-arrow symbol
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText('🏹', this.x, this.y + 2);
+        ctx.textAlign = 'left';
+    }
+}
+
+class Archmage extends Wizard {
+    constructor(x, y) {
+        super(x, y);
+        this.health = 80;
+        this.maxHealth = 80;
+        this.baseAttackRate = 800;
+        this.attackRate = this.baseAttackRate;
+        this.baseProjectileDamage = 50;
+        this.projectileDamage = this.baseProjectileDamage;
+        this.color = '#8b5cf6';
+        this.type = 'archmage';
+        this.evolved = true;
+        this.canEvolve = false;
+        this.chainCount = 3;
+        this.manaShield = 0.5; // 50% damage reduction
+    }
+    
+    takeDamage(amount) {
+        // Mana shield reduces damage
+        const reducedDamage = amount * (1 - this.manaShield);
+        super.takeDamage(reducedDamage);
+    }
+    
+    attack(monsters, projectiles) {
+        let nearestMonster = null;
+        let nearestDistance = Infinity;
+        
+        monsters.forEach(monster => {
+            const distance = this.getDistance(monster);
+            if (distance <= this.range && distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestMonster = monster;
+            }
+        });
+        
+        if (nearestMonster) {
+            const angle = Math.atan2(nearestMonster.y - this.y, nearestMonster.x - this.x);
+            projectiles.push(new ChainLightning(
+                this.x, this.y, angle, this.projectileSpeed, this.projectileDamage, this.color, this.chainCount
+            ));
+        }
+    }
+    
+    render(ctx) {
+        super.render(ctx);
+        
+        // Draw archmage symbol with glow
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 5;
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚡', this.x, this.y + 2);
+        ctx.textAlign = 'left';
+        ctx.shadowBlur = 0;
+    }
+}
+
+class Elementalist extends Wizard {
+    constructor(x, y) {
+        super(x, y);
+        this.health = 75;
+        this.maxHealth = 75;
+        this.baseAttackRate = 1000;
+        this.attackRate = this.baseAttackRate;
+        this.baseProjectileDamage = 30;
+        this.projectileDamage = this.baseProjectileDamage;
+        this.color = '#e67e22';
+        this.type = 'elementalist';
+        this.evolved = true;
+        this.canEvolve = false;
+        this.elements = ['fire', 'ice', 'lightning'];
+        this.currentElement = 0;
+    }
+    
+    attack(monsters, projectiles) {
+        let nearestMonster = null;
+        let nearestDistance = Infinity;
+        
+        monsters.forEach(monster => {
+            const distance = this.getDistance(monster);
+            if (distance <= this.range && distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestMonster = monster;
+            }
+        });
+        
+        if (nearestMonster) {
+            const angle = Math.atan2(nearestMonster.y - this.y, nearestMonster.x - this.x);
+            const element = this.elements[this.currentElement];
+            
+            projectiles.push(new ElementalProjectile(
+                this.x, this.y, angle, this.projectileSpeed, this.projectileDamage, element
+            ));
+            
+            // Cycle through elements
+            this.currentElement = (this.currentElement + 1) % this.elements.length;
+        }
+    }
+    
+    render(ctx) {
+        super.render(ctx);
+        
+        // Draw elemental symbol
+        ctx.fillStyle = '#fff';
+        ctx.font = '8px "Press Start 2P"';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔥', this.x, this.y + 2);
+        ctx.textAlign = 'left';
+    }
+}
+
+// Special Projectile Classes
+class ChainLightning extends MagicProjectile {
+    constructor(x, y, angle, speed, damage, color, chainCount) {
+        super(x, y, angle, speed, damage, color);
+        this.chainCount = chainCount;
+        this.hasChained = false;
+    }
+    
+    // Chain lightning logic would be implemented in collision detection
+}
+
+class ElementalProjectile extends MagicProjectile {
+    constructor(x, y, angle, speed, damage, element) {
+        super(x, y, angle, speed, damage, '#e67e22');
+        this.element = element;
+        this.statusEffect = this.getStatusEffect();
+        
+        // Set color based on element
+        switch (element) {
+            case 'fire':
+                this.color = '#e74c3c';
+                break;
+            case 'ice':
+                this.color = '#3498db';
+                break;
+            case 'lightning':
+                this.color = '#f1c40f';
+                break;
+        }
+    }
+    
+    getStatusEffect() {
+        switch (this.element) {
+            case 'fire':
+                return { type: 'burn', duration: 3000, damage: 5 };
+            case 'ice':
+                return { type: 'slow', duration: 2000, multiplier: 0.5 };
+            case 'lightning':
+                return { type: 'stun', duration: 1000 };
+            default:
+                return null;
+        }
     }
 }
 
