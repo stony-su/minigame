@@ -769,7 +769,9 @@ class Entity {
     }
     
     drawHealthBar(ctx) {
-        if (this.health === this.maxHealth) return;
+        // Show health bar if monster has taken damage (accounting for floating point precision)
+        const healthPercent = this.health / this.maxHealth;
+        if (healthPercent >= 0.999) return; // Only hide if essentially at full health
         
         const barWidth = this.size * 2;
         const barHeight = 4;
@@ -780,10 +782,10 @@ class Entity {
         ctx.fillStyle = '#333';
         ctx.fillRect(x, y, barWidth, barHeight);
         
-        // Health
-        const healthPercent = this.health / this.maxHealth;
-        ctx.fillStyle = healthPercent > 0.5 ? '#4ecdc4' : '#e74c3c';
-        ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
+        // Health - ensure we can see the bar even for very high HP monsters
+        const displayHealthPercent = Math.max(0, Math.min(1, healthPercent));
+        ctx.fillStyle = displayHealthPercent > 0.5 ? '#4ecdc4' : '#e74c3c';
+        ctx.fillRect(x, y, barWidth * displayHealthPercent, barHeight);
     }
 }
 
@@ -841,13 +843,18 @@ class Monster extends Entity {
     applyWaveScaling(wave, hpScalingPhase = 0) {
         const scale = 1 + (wave - 1) * 0.3;
         
-        // Apply massive HP scaling for each HP phase (after spawn rate minimums)
-        const hpScale = scale * Math.pow(5, hpScalingPhase); // 5x HP multiplier per phase
+        // Apply reasonable HP scaling for each HP phase (after spawn rate minimums)
+        // Cap hpScalingPhase at 10 to prevent astronomical values
+        const cappedHpScalingPhase = Math.min(hpScalingPhase, 10);
+        const hpScale = scale * (1 + cappedHpScalingPhase * 5); // Linear 5x multiplier per phase instead of exponential
         
         this.health *= hpScale;
         this.maxHealth = this.health;
         this.damage = Math.floor(this.damage * scale);
-        this.reward = Math.floor(this.reward * (1 + (wave - 1) * 0.2) * (1 + hpScalingPhase * 2)); // More reward for HP scaled monsters
+        
+        // Cap reward scaling at wave 13
+        const rewardWave = Math.min(wave, 10);
+        this.reward = Math.floor(this.reward * (1 + (rewardWave - 1) * 0.2) * (1 + hpScalingPhase * 2)); // More reward for HP scaled monsters, capped at wave 13
         
         // Reset speed for HP scaling phases to prevent impossibly fast monsters
         if (hpScalingPhase > 0) {
