@@ -39,6 +39,8 @@ class Game {
         // Spawn timers
         this.monsterSpawnTimer = 0;
         this.monsterSpawnRate = 2000; // milliseconds
+        this.minSpawnRate = 50; // Minimum spawn rate (very fast spawning)
+        this.hpScalingPhase = 0; // Tracks how many times we've reset spawn rate for HP scaling
         
         // Initialize with 3 warriors
         this.initializeStartingUnits();
@@ -272,6 +274,7 @@ class Game {
         this.wave = 1;
         this.time = 0;
         this.monsterSpawnTimer = 0;
+        this.hpScalingPhase = 0;
         
         // Reset upgrades
         this.upgrades = {
@@ -331,7 +334,7 @@ class Game {
             monsterType = 'strong';
         }
         
-        this.monsters.push(new Monster(x, y, monsterType, this.wave));
+        this.monsters.push(new Monster(x, y, monsterType, this.wave, this.hpScalingPhase));
     }
     
     update(deltaTime) {
@@ -344,7 +347,23 @@ class Game {
 
         // Spawn monsters
         this.monsterSpawnTimer += adjustedDeltaTime;
-        const currentSpawnRate = Math.max(500, this.monsterSpawnRate - (this.wave - 1) * 100);
+        let currentSpawnRate;
+        
+        if (this.wave <= 10) {
+            // Linear decrease for waves 1-10
+            currentSpawnRate = Math.max(500, this.monsterSpawnRate - (this.wave - 1) * 100);
+        } else {
+            // Exponential decrease after wave 10
+            const exponentialFactor = Math.pow(0.85, this.wave - 10);
+            currentSpawnRate = Math.max(this.minSpawnRate, 500 * exponentialFactor);
+            
+            // If we've hit minimum spawn rate, increase HP scaling and reset spawn rate
+            if (currentSpawnRate <= this.minSpawnRate && this.monsterSpawnTimer >= this.minSpawnRate) {
+                this.hpScalingPhase++;
+                // Reset spawn rate to a higher value to create waves of difficulty
+                currentSpawnRate = 300;
+            }
+        }
         
         if (this.monsterSpawnTimer >= currentSpawnRate) {
             this.spawnMonster();
@@ -803,7 +822,7 @@ class Particle {
 
 // Monster Classes
 class Monster extends Entity {
-    constructor(x, y, type, wave) {
+    constructor(x, y, type, wave, hpScalingPhase = 0) {
         super(x, y);
         this.speed = 30;
         this.damage = 10;
@@ -814,18 +833,29 @@ class Monster extends Entity {
         this.vx = 0;
         this.vy = 0;
         
-        // Scale with wave
-        this.applyWaveScaling(wave);
+        // Scale with wave and HP scaling phase
+        this.applyWaveScaling(wave, hpScalingPhase);
         this.applyTypeModifiers(type);
     }
     
-    applyWaveScaling(wave) {
+    applyWaveScaling(wave, hpScalingPhase = 0) {
         const scale = 1 + (wave - 1) * 0.3;
-        this.health *= scale;
+        
+        // Apply massive HP scaling for each HP phase (after spawn rate minimums)
+        const hpScale = scale * Math.pow(5, hpScalingPhase); // 5x HP multiplier per phase
+        
+        this.health *= hpScale;
         this.maxHealth = this.health;
         this.damage = Math.floor(this.damage * scale);
-        this.reward = Math.floor(this.reward * (1 + (wave - 1) * 0.2));
-        this.speed *= (1 + (wave - 1) * 0.1);
+        this.reward = Math.floor(this.reward * (1 + (wave - 1) * 0.2) * (1 + hpScalingPhase * 2)); // More reward for HP scaled monsters
+        
+        // Reset speed for HP scaling phases to prevent impossibly fast monsters
+        if (hpScalingPhase > 0) {
+            // Keep base speed for HP scaled monsters
+            this.speed = 30 * (1 + Math.min(wave - 1, 10) * 0.1); // Cap speed scaling at wave 10
+        } else {
+            this.speed *= (1 + (wave - 1) * 0.1);
+        }
     }
     
     applyTypeModifiers(type) {
