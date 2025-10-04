@@ -15,6 +15,13 @@ class Game {
         this.speedMultiplier = 1; // Speed control (1x, 2x, 4x)
         this.speedLevels = [1, 2, 4];
         
+        // Upgrade system
+        this.upgrades = {
+            damage: { level: 0, cost: 150, multiplier: 1.5 },
+            attackSpeed: { level: 0, cost: 200, multiplier: 0.8 },
+            range: { level: 0, cost: 175, multiplier: 1.3 }
+        };
+        
         // Unit placement state
         this.placementMode = false;
         this.placementUnitType = null;
@@ -80,6 +87,11 @@ class Game {
         document.getElementById('buy-ranger').addEventListener('click', () => this.buyUnit('ranger'));
         document.getElementById('buy-wizard').addEventListener('click', () => this.buyUnit('wizard'));
         
+        // Upgrade buttons
+        document.getElementById('upgrade-damage').addEventListener('click', () => this.buyUpgrade('damage'));
+        document.getElementById('upgrade-attack-speed').addEventListener('click', () => this.buyUpgrade('attackSpeed'));
+        document.getElementById('upgrade-range').addEventListener('click', () => this.buyUpgrade('range'));
+        
         // Control buttons
         document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
         document.getElementById('resume-btn').addEventListener('click', () => this.togglePause());
@@ -107,7 +119,14 @@ class Game {
             // Check if placement is valid (not too close to center, within bounds)
             if (this.isValidPlacement(x, y)) {
                 // Place the unit
-                this.units.push(new this.placementUnitClass(x, y));
+                const newUnit = new this.placementUnitClass(x, y);
+                
+                // Apply current upgrades to new unit
+                newUnit.applyDamageUpgrade(this.upgrades.damage.level, this.upgrades.damage.multiplier);
+                newUnit.applyAttackSpeedUpgrade(this.upgrades.attackSpeed.level, this.upgrades.attackSpeed.multiplier);
+                newUnit.applyRangeUpgrade(this.upgrades.range.level, this.upgrades.range.multiplier);
+                
+                this.units.push(newUnit);
                 this.money -= this.placementUnitCost;
                 this.updateUI();
                 this.exitPlacementMode();
@@ -154,6 +173,43 @@ class Game {
         this.placementUnitClass = null;
         this.placementUnitCost = 0;
         this.canvas.style.cursor = 'default';
+    }
+    
+    buyUpgrade(type) {
+        const upgrade = this.upgrades[type];
+        if (this.money >= upgrade.cost) {
+            this.money -= upgrade.cost;
+            upgrade.level++;
+            
+            // Increase cost for next level (exponential scaling)
+            upgrade.cost = Math.floor(upgrade.cost * 1.5);
+            
+            // Apply upgrades to existing units
+            this.applyUpgradesToExistingUnits(type);
+            
+            this.updateUI();
+        }
+    }
+    
+    applyUpgradesToExistingUnits(upgradeType) {
+        this.units.forEach(unit => {
+            switch (upgradeType) {
+                case 'damage':
+                    unit.applyDamageUpgrade(this.upgrades.damage.level, this.upgrades.damage.multiplier);
+                    break;
+                case 'attackSpeed':
+                    unit.applyAttackSpeedUpgrade(this.upgrades.attackSpeed.level, this.upgrades.attackSpeed.multiplier);
+                    break;
+                case 'range':
+                    unit.applyRangeUpgrade(this.upgrades.range.level, this.upgrades.range.multiplier);
+                    break;
+            }
+        });
+    }
+    
+    getUpgradeMultiplier(type) {
+        const upgrade = this.upgrades[type];
+        return Math.pow(upgrade.multiplier, upgrade.level);
     }
     
     cancelPlacement() {
@@ -216,6 +272,13 @@ class Game {
         this.wave = 1;
         this.time = 0;
         this.monsterSpawnTimer = 0;
+        
+        // Reset upgrades
+        this.upgrades = {
+            damage: { level: 0, cost: 150, multiplier: 1.5 },
+            attackSpeed: { level: 0, cost: 200, multiplier: 0.8 },
+            range: { level: 0, cost: 175, multiplier: 1.3 }
+        };
         
         // Reset placement mode
         this.exitPlacementMode();
@@ -632,6 +695,19 @@ class Game {
         document.getElementById('buy-warrior').disabled = this.money < 50;
         document.getElementById('buy-ranger').disabled = this.money < 75;
         document.getElementById('buy-wizard').disabled = this.money < 100;
+        
+        // Update upgrade UI
+        document.getElementById('damage-upgrade-cost').textContent = this.upgrades.damage.cost;
+        document.getElementById('damage-upgrade-level').textContent = this.upgrades.damage.level;
+        document.getElementById('speed-upgrade-cost').textContent = this.upgrades.attackSpeed.cost;
+        document.getElementById('speed-upgrade-level').textContent = this.upgrades.attackSpeed.level;
+        document.getElementById('range-upgrade-cost').textContent = this.upgrades.range.cost;
+        document.getElementById('range-upgrade-level').textContent = this.upgrades.range.level;
+        
+        // Update upgrade button states
+        document.getElementById('upgrade-damage').disabled = this.money < this.upgrades.damage.cost;
+        document.getElementById('upgrade-attack-speed').disabled = this.money < this.upgrades.attackSpeed.cost;
+        document.getElementById('upgrade-range').disabled = this.money < this.upgrades.range.cost;
     }
     
     gameLoop() {
@@ -857,13 +933,47 @@ class Unit extends Entity {
     constructor(x, y) {
         super(x, y);
         this.attackTimer = 0;
-        this.attackRate = 1000; // milliseconds
-        this.range = 50;
-        this.meleeDamage = 10;
-        this.projectileDamage = 0;
+        this.baseAttackRate = 1000; // Base attack rate
+        this.attackRate = this.baseAttackRate; // Current attack rate
+        this.baseRange = 50; // Base range
+        this.range = this.baseRange; // Current range
+        this.baseMeleeDamage = 10; // Base melee damage
+        this.meleeDamage = this.baseMeleeDamage; // Current melee damage
+        this.baseProjectileDamage = 0; // Base projectile damage
+        this.projectileDamage = this.baseProjectileDamage; // Current projectile damage
         this.projectileSpeed = 200;
         this.color = '#4ecdc4';
         this.type = 'unit';
+        
+        // Upgrade tracking
+        this.damageUpgradeLevel = 0;
+        this.attackSpeedUpgradeLevel = 0;
+        this.rangeUpgradeLevel = 0;
+    }
+    
+    applyDamageUpgrade(level, multiplier) {
+        if (level !== this.damageUpgradeLevel) {
+            this.damageUpgradeLevel = level;
+            const damageMultiplier = Math.pow(multiplier, level);
+            this.meleeDamage = Math.floor(this.baseMeleeDamage * damageMultiplier);
+            this.projectileDamage = Math.floor(this.baseProjectileDamage * damageMultiplier);
+        }
+    }
+    
+    applyAttackSpeedUpgrade(level, multiplier) {
+        if (level !== this.attackSpeedUpgradeLevel) {
+            this.attackSpeedUpgradeLevel = level;
+            const speedMultiplier = Math.pow(multiplier, level);
+            this.attackRate = Math.floor(this.baseAttackRate * speedMultiplier);
+        }
+    }
+    
+    applyRangeUpgrade(level, multiplier) {
+        if (level !== this.rangeUpgradeLevel) {
+            this.rangeUpgradeLevel = level;
+            const rangeMultiplier = Math.pow(multiplier, level);
+            this.range = Math.floor(this.baseRange * rangeMultiplier);
+        }
     }
     
     update(deltaTime, monsters, projectiles) {
@@ -940,9 +1050,12 @@ class Warrior extends Unit {
         this.health = 150;
         this.maxHealth = 150;
         this.size = 12;
-        this.attackRate = 800;
-        this.range = 25;
-        this.meleeDamage = 25;
+        this.baseAttackRate = 800;
+        this.attackRate = this.baseAttackRate;
+        this.baseRange = 25;
+        this.range = this.baseRange;
+        this.baseMeleeDamage = 25;
+        this.meleeDamage = this.baseMeleeDamage;
         this.color = '#e74c3c';
         this.type = 'warrior';
     }
@@ -969,10 +1082,14 @@ class Ranger extends Unit {
         this.health = 80;
         this.maxHealth = 80;
         this.size = 10;
-        this.attackRate = 600;
-        this.range = 120;
-        this.meleeDamage = 5;
-        this.projectileDamage = 20;
+        this.baseAttackRate = 600;
+        this.attackRate = this.baseAttackRate;
+        this.baseRange = 120;
+        this.range = this.baseRange;
+        this.baseMeleeDamage = 5;
+        this.meleeDamage = this.baseMeleeDamage;
+        this.baseProjectileDamage = 20;
+        this.projectileDamage = this.baseProjectileDamage;
         this.projectileSpeed = 300;
         this.color = '#2ecc71';
         this.type = 'ranger';
@@ -1003,10 +1120,14 @@ class Wizard extends Unit {
         this.health = 60;
         this.maxHealth = 60;
         this.size = 10;
-        this.attackRate = 1200;
-        this.range = 100;
-        this.meleeDamage = 5;
-        this.projectileDamage = 35;
+        this.baseAttackRate = 1200;
+        this.attackRate = this.baseAttackRate;
+        this.baseRange = 100;
+        this.range = this.baseRange;
+        this.baseMeleeDamage = 5;
+        this.meleeDamage = this.baseMeleeDamage;
+        this.baseProjectileDamage = 35;
+        this.projectileDamage = this.baseProjectileDamage;
         this.projectileSpeed = 250;
         this.color = '#9b59b6';
         this.type = 'wizard';
