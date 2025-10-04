@@ -39,7 +39,7 @@ class Game {
         // Spawn timers
         this.monsterSpawnTimer = 0;
         this.monsterSpawnRate = 2000; // milliseconds
-        this.minSpawnRate = 50; // Minimum spawn rate (very fast spawning)
+        this.minSpawnRate = 10; // Minimum spawn rate (very fast spawning)
         this.hpScalingPhase = 0; // Tracks how many times we've reset spawn rate for HP scaling
         
         // Initialize with 3 warriors
@@ -112,6 +112,16 @@ class Game {
             }
             if (e.code === 'Escape' && this.placementMode) {
                 this.cancelPlacement();
+            }
+            // Unit hotkeys
+            if (e.code === 'KeyZ' && this.gameState === 'playing') {
+                this.buyUnit('warrior');
+            }
+            if (e.code === 'KeyX' && this.gameState === 'playing') {
+                this.buyUnit('ranger');
+            }
+            if (e.code === 'KeyC' && this.gameState === 'playing') {
+                this.buyUnit('wizard');
             }
         });
     }
